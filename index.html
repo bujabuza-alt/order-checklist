@@ -63,7 +63,6 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .db-category { margin-bottom: 16px; }
 .db-category-title { font-size: 11px; color: #888; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 8px; padding-left: 2px; }
 .db-items { display: flex; flex-direction: column; gap: 6px; }
-
 .db-item-row { background: #fff; border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .db-item-select { flex: 1; display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .db-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent; transition: all 0.2s; flex-shrink: 0; }
@@ -73,7 +72,6 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .db-action-btns { display: flex; gap: 6px; flex-shrink: 0; }
 .db-edit-btn { background: #f5f5f5; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #555; cursor: pointer; }
 .db-del-btn { background: #fff0f0; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #e53935; cursor: pointer; }
-
 .db-edit-form { background: #fffbf0; border-radius: 10px; padding: 10px 12px; margin-top: 2px; display: none; border: 1.5px solid #f0d890; }
 .db-edit-form.visible { display: block; }
 .edit-form-row { display: flex; gap: 8px; margin-bottom: 8px; }
@@ -100,6 +98,9 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .modal-btns { display: flex; gap: 8px; }
 .modal-cancel { flex: 1; background: #f5f5f5; color: #555; border: none; border-radius: 8px; padding: 12px; font-size: 14px; cursor: pointer; }
 .modal-confirm { flex: 1; background: #e53935; color: #fff; border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+.save-indicator { font-size: 10px; color: #4caf50; text-align: right; padding: 4px 16px 0; opacity: 0; transition: opacity 0.3s; }
+.save-indicator.show { opacity: 1; }
 </style>
 
 </head>
@@ -120,6 +121,7 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
   <div class="tab active" onclick="switchTab('order')">📋 발주 목록</div>
   <div class="tab" onclick="switchTab('db')">🗂 상품 관리</div>
 </div>
+<div class="save-indicator" id="saveIndicator">✓ 저장됨</div>
 
 <div class="section active" id="tab-order">
   <div class="summary-bar">
@@ -161,7 +163,7 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 <div class="modal-overlay" id="clearModal">
   <div class="modal">
     <h3>발주 목록 초기화</h3>
-    <p>선택된 모든 품목과\n수량이 제거됩니다.\n계속하시겠어요?</p>
+    <p>선택된 모든 품목과 수량이\n제거됩니다. 계속하시겠어요?</p>
     <div class="modal-btns">
       <button class="modal-cancel" onclick="hideClearModal()">취소</button>
       <button class="modal-confirm" onclick="clearAllOrder()">초기화</button>
@@ -183,7 +185,8 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 <div class="toast" id="toast"></div>
 
 <script>
-let products = [
+// ── 기본 상품 목록 ──
+const DEFAULT_PRODUCTS = [
   {id:1,name:'양파',unit:'kg',category:'채소'},
   {id:2,name:'감자',unit:'kg',category:'채소'},
   {id:3,name:'당근',unit:'kg',category:'채소'},
@@ -206,13 +209,46 @@ let products = [
   {id:20,name:'두부',unit:'모',category:'기타'},
   {id:21,name:'쌀',unit:'kg',category:'곡류'},
 ];
-let orderItems = [];
-let nextProductId = 100;
+
+// ── localStorage 로드 ──
+function loadData() {
+  try {
+    const saved = localStorage.getItem('orderApp');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return null;
+}
+
+function saveData() {
+  try {
+    localStorage.setItem('orderApp', JSON.stringify({
+      products, orderItems, nextProductId,
+      supplier: document.getElementById('supplierInput').value,
+      date: document.getElementById('dateInput').value,
+    }));
+    showSaveIndicator();
+  } catch(e) {}
+}
+
+function showSaveIndicator() {
+  const el = document.getElementById('saveIndicator');
+  el.classList.add('show');
+  clearTimeout(showSaveIndicator._t);
+  showSaveIndicator._t = setTimeout(() => el.classList.remove('show'), 1500);
+}
+
+// ── 초기화 ──
+const saved = loadData();
+let products = saved?.products || DEFAULT_PRODUCTS;
+let orderItems = saved?.orderItems || [];
+let nextProductId = saved?.nextProductId || 100;
 let editingProductId = null;
 let deletingProductId = null;
 
-document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+document.getElementById('dateInput').value = saved?.date || new Date().toISOString().split('T')[0];
+document.getElementById('supplierInput').value = saved?.supplier || '';
 
+// ── 탭 ──
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active',(i===0&&tab==='order')||(i===1&&tab==='db')));
   document.getElementById('tab-order').classList.toggle('active', tab==='order');
@@ -220,6 +256,7 @@ function switchTab(tab) {
   if(tab==='db') renderDB();
 }
 
+// ── 상품 DB ──
 function renderDB() {
   const q = document.getElementById('dbSearch').value.trim().toLowerCase();
   const categories = [...new Set(products.map(p=>p.category))];
@@ -254,8 +291,8 @@ function renderDB() {
       editForm.className = 'db-edit-form'+(isEditing?' visible':'');
       editForm.innerHTML = `
         <div class="edit-form-row">
-          <input class="edit-input" id="edit-name-${p.id}" type="text" placeholder="품목명" value="${p.name}">
-          <input class="edit-input" id="edit-unit-${p.id}" type="text" placeholder="단위" value="${p.unit}" style="max-width:80px">
+          <input class="edit-input" id="edit-name-${p.id}" type="text" value="${p.name}" placeholder="품목명">
+          <input class="edit-input" id="edit-unit-${p.id}" type="text" value="${p.unit}" placeholder="단위" style="max-width:80px">
         </div>
         <div class="edit-form-row">
           <button class="edit-submit" onclick="saveEdit(${p.id})">저장</button>
@@ -272,25 +309,23 @@ function toggleProduct(productId) {
   const idx = orderItems.findIndex(o=>o.productId===productId);
   if(idx>=0){orderItems.splice(idx,1);showToast('목록에서 제거했어요');}
   else{orderItems.push({productId,qty:1,done:false});showToast('발주 목록에 추가했어요 ✓');}
-  renderDB(); renderOrder();
+  saveData(); renderDB(); renderOrder();
 }
 
 function startEdit(id) {
   editingProductId = editingProductId===id ? null : id;
   renderDB();
 }
-
-function cancelEdit() { editingProductId=null; renderDB(); }
-
+function cancelEdit(){editingProductId=null;renderDB();}
 function saveEdit(id) {
-  const name = document.getElementById(`edit-name-${id}`).value.trim();
-  const unit = document.getElementById(`edit-unit-${id}`).value.trim();
+  const name=document.getElementById(`edit-name-${id}`).value.trim();
+  const unit=document.getElementById(`edit-unit-${id}`).value.trim();
   if(!name||!unit){showToast('이름과 단위를 입력해주세요');return;}
-  const p = products.find(x=>x.id===id);
+  const p=products.find(x=>x.id===id);
   if(p){p.name=name;p.unit=unit;}
   editingProductId=null;
   showToast('수정 완료!');
-  renderDB(); renderOrder();
+  saveData(); renderDB(); renderOrder();
 }
 
 function showDelModal(id) {
@@ -307,7 +342,7 @@ function confirmDeleteProduct(){
   orderItems=orderItems.filter(x=>x.productId!==deletingProductId);
   hideDelModal();
   showToast(`'${p?.name}' 삭제 완료`);
-  renderDB(); renderOrder();
+  saveData(); renderDB(); renderOrder();
 }
 
 function toggleAddForm(){document.getElementById('addProductForm').classList.toggle('visible');}
@@ -321,9 +356,10 @@ function addProduct(){
   document.getElementById('newProductUnit').value='';
   document.getElementById('addProductForm').classList.remove('visible');
   showToast(`'${name}' 등록 완료!`);
-  renderDB();
+  saveData(); renderDB();
 }
 
+// ── 발주 목록 ──
 function renderOrder(){
   const list=document.getElementById('orderList');
   list.innerHTML='';
@@ -352,17 +388,33 @@ function renderOrder(){
   updateSummary(); updatePreview();
 }
 
-function toggleDone(id){const o=orderItems.find(x=>x.productId===id);if(o){o.done=!o.done;renderOrder();}}
-function changeQty(id,d){const o=orderItems.find(x=>x.productId===id);if(o){o.qty=Math.max(1,(o.qty||1)+d);renderOrder();}}
-function setQty(id,v){const o=orderItems.find(x=>x.productId===id);if(o){o.qty=Math.max(1,parseInt(v)||1);renderOrder();}}
-function removeOrder(id){orderItems=orderItems.filter(x=>x.productId!==id);renderOrder();renderDB();}
+function toggleDone(id){
+  const o=orderItems.find(x=>x.productId===id);
+  if(o){o.done=!o.done;saveData();renderOrder();}
+}
+function changeQty(id,d){
+  const o=orderItems.find(x=>x.productId===id);
+  if(o){o.qty=Math.max(1,(o.qty||1)+d);saveData();renderOrder();}
+}
+function setQty(id,v){
+  const o=orderItems.find(x=>x.productId===id);
+  if(o){o.qty=Math.max(1,parseInt(v)||1);saveData();renderOrder();}
+}
+function removeOrder(id){
+  orderItems=orderItems.filter(x=>x.productId!==id);
+  saveData(); renderOrder(); renderDB();
+}
 
 function showClearModal(){
   if(!orderItems.length){showToast('발주 목록이 비어있어요');return;}
   document.getElementById('clearModal').classList.add('show');
 }
 function hideClearModal(){document.getElementById('clearModal').classList.remove('show');}
-function clearAllOrder(){orderItems=[];hideClearModal();showToast('발주 목록을 초기화했어요');renderOrder();renderDB();}
+function clearAllOrder(){
+  orderItems=[];hideClearModal();
+  showToast('발주 목록을 초기화했어요');
+  saveData(); renderOrder(); renderDB();
+}
 
 function updateSummary(){
   const total=orderItems.length;
@@ -402,7 +454,6 @@ function copyOrder(){
   if(navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
   else fallbackCopy(text,done);
 }
-
 function fallbackCopy(text,cb){
   const ta=document.createElement('textarea');
   ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
@@ -417,8 +468,9 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2000);
 }
 
-document.getElementById('supplierInput').addEventListener('input',updatePreview);
-document.getElementById('dateInput').addEventListener('change',updatePreview);
+// 업체/날짜 변경 시 저장
+document.getElementById('supplierInput').addEventListener('input',()=>{saveData();updatePreview();});
+document.getElementById('dateInput').addEventListener('change',()=>{saveData();updatePreview();});
 document.getElementById('newProductName').addEventListener('keydown',e=>{if(e.key==='Enter')addProduct();});
 
 renderOrder();
