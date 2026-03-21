@@ -477,5 +477,13 @@ renderOrder();
 renderDB();
 </script>
 
+<!-- ✅ Service Worker 등록 -->
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+  }
+</script>
+
 </body>
 </html>
