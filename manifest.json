@@ -1,0 +1,24 @@
+{
+  "name": "류마_발주 체크",
+  "short_name": "류마_발주",
+  "description": "식당 발주 관리 앱",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0ede8",
+  "theme_color": "#1a1a1a",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
