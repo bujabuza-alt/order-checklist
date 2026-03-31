@@ -126,6 +126,20 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .form-row2 .form-group { flex: 1; }
 .form-select { width: 100%; border: 1.5px solid #eee; border-radius: 8px; padding: 10px 12px; font-size: 14px; outline: none; background: #fafafa; }
 .form-submit { width: 100%; background: #1a1a1a; color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 4px; }
+/* 새 상품 추가 플로팅 버튼이 항상 위에 오도록 */
+.floating-add-btn,
+.add-product-btn.fixed {
+  position: fixed !important;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999 !important;     /* 가장 중요한 부분 */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* 모달이나 다른 요소가 버튼을 가리지 않게 */
+.modal-overlay {
+  z-index: 10000 !important;
+}
 </style>
 </head>
 <body>
