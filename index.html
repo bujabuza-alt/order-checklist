@@ -45,6 +45,7 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .price-card { background: #1a1a1a; border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
 .price-card-label { font-size: 11px; color: #888; letter-spacing: 0.1em; }
 .price-card-amount { font-size: 22px; font-weight: 700; color: #c8a96e; }
+.price-card-range { font-size: 13px; color: #a07840; margin-top: 3px; font-weight: 600; }
 .price-card-sub { font-size: 11px; color: #555; margin-top: 2px; }
 
 /* 복사 미리보기 */
@@ -167,9 +168,10 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
   </div>
 
   <div class="price-card">
-    <div>
+    <div style="width:100%">
       <div class="price-card-label">예상 발주 금액</div>
       <div class="price-card-amount" id="totalPrice">₩0</div>
+      <div class="price-card-range" id="priceRange"></div>
       <div class="price-card-sub" id="priceSubText">단가 입력된 품목 기준</div>
     </div>
   </div>
@@ -483,6 +485,14 @@ function updateSummary(){
     if(p&&p.price){totalPrice+=p.price*o.qty;priceCount++;}
   });
   document.getElementById('totalPrice').textContent='₩'+totalPrice.toLocaleString();
+  const rangeEl=document.getElementById('priceRange');
+  if(totalPrice>0){
+    const low=Math.round(totalPrice*0.9);
+    const high=Math.round(totalPrice*1.1);
+    rangeEl.textContent=`₩${low.toLocaleString()} ~ ₩${high.toLocaleString()}`;
+  } else {
+    rangeEl.textContent='';
+  }
   const noPriceCount=orderItems.length-priceCount;
   document.getElementById('priceSubText').textContent=
     noPriceCount>0?`단가 미입력 ${noPriceCount}개 품목 제외`:'전체 품목 합산';
