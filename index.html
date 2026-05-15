@@ -78,7 +78,12 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .order-item-price.no-price { color: #ccc; font-weight: 400; }
 
 /* 상품 DB */
-.db-search { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; font-size: 14px; outline: none; margin-bottom: 12px; background: #fff; }
+.db-search { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; font-size: 14px; outline: none; margin-bottom: 10px; background: #fff; }
+.db-sort-bar { display: flex; gap: 6px; margin-bottom: 12px; }
+.db-sort-btn { flex: 1; padding: 8px; border: 1.5px solid #ddd; border-radius: 8px; background: #fff; font-size: 13px; font-weight: 600; color: #aaa; cursor: pointer; transition: all 0.2s; }
+.db-sort-btn.active { border-color: #1a1a1a; background: #1a1a1a; color: #fff; }
+.db-freq-badge { font-size: 10px; color: #c8a96e; background: #fff8ed; border-radius: 10px; padding: 1px 7px; flex-shrink: 0; font-weight: 600; }
+.db-freq-badge.zero { color: #ccc; background: #f5f5f5; }
 .db-category { margin-bottom: 16px; }
 .db-category-title { font-size: 11px; color: #888; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 8px; padding-left: 2px; }
 .db-items { display: flex; flex-direction: column; gap: 6px; }
@@ -190,6 +195,10 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 <!-- 상품 관리 탭 -->
 <div class="section" id="tab-db">
   <input type="text" class="db-search" id="dbSearch" placeholder="🔍 품목 검색..." oninput="renderDB()">
+  <div class="db-sort-bar">
+    <button class="db-sort-btn active" id="sortBtnName" onclick="setDbSort('name')">이름순</button>
+    <button class="db-sort-btn" id="sortBtnFreq" onclick="setDbSort('freq')">사용빈도순</button>
+  </div>
   <div id="dbList"></div>
   <button class="add-product-btn" onclick="openAddModal()">+ 새 품목 등록</button>
 </div>
@@ -302,12 +311,13 @@ function showSaveIndicator() {
 
 const saved=loadData();
 let products=saved?.products || DEFAULT_PRODUCTS.map(p=>({...p,price:p.price||0}));
-// 기존 데이터에 price 필드 없을 경우 보정
-products=products.map(p=>({...p,price:p.price??0}));
+// 기존 데이터에 price / usageCount 필드 없을 경우 보정
+products=products.map(p=>({...p,price:p.price??0,usageCount:p.usageCount??0}));
 let orderItems=saved?.orderItems||[];
 let nextProductId=saved?.nextProductId||100;
 let editingProductId=null;
 let deletingProductId=null;
+let dbSortMode='name';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&tab==='order')||(i===1&&tab==='db')));
@@ -317,59 +327,91 @@ function switchTab(tab) {
 }
 
 // ── 상품 DB ──
-function renderDB() {
-  const q=document.getElementById('dbSearch').value.trim().toLowerCase();
-  const categories=[...new Set(products.map(p=>p.category))];
-  const container=document.getElementById('dbList');
-  container.innerHTML='';
-  categories.forEach(cat=>{
-    const filtered=products.filter(p=>p.category===cat&&(!q||p.name.includes(q)));
-    if(!filtered.length) return;
-    const div=document.createElement('div');
-    div.className='db-category';
-    div.innerHTML=`<div class="db-category-title">${cat}</div><div class="db-items"></div>`;
-    container.appendChild(div);
-    const itemsEl=div.querySelector('.db-items');
-    filtered.forEach(p=>{
-      const isSelected=orderItems.some(o=>o.productId===p.id);
-      const isEditing=editingProductId===p.id;
-      const priceText=p.price?`${p.price.toLocaleString()}원/${p.unit}`:'단가없음';
-      const row=document.createElement('div');
-      row.className='db-item-row';
-      row.innerHTML=`
-        <div class="db-item-select" onclick="toggleProduct(${p.id})">
-          <div class="db-check ${isSelected?'selected':''}">${isSelected?'✓':''}</div>
-          <span class="db-item-name">${p.name}</span>
-          <span class="db-item-unit">${p.unit}</span>
-          <span class="db-item-price-tag ${p.price?'':'none'}">${priceText}</span>
-        </div>
-        <div class="db-action-btns">
-          <button class="db-edit-btn" onclick="event.stopPropagation();startEdit(${p.id})">수정</button>
-          <button class="db-del-btn" onclick="event.stopPropagation();showDelModal(${p.id})">삭제</button>
-        </div>`;
-      itemsEl.appendChild(row);
-      const editForm=document.createElement('div');
-      editForm.className='db-edit-form'+(isEditing?' visible':'');
-      editForm.innerHTML=`
-        <div class="edit-form-row">
-          <input class="edit-input" id="edit-name-${p.id}" type="text" value="${p.name}" placeholder="품목명">
-          <input class="edit-input" id="edit-unit-${p.id}" type="text" value="${p.unit}" placeholder="단위" style="max-width:70px">
-        </div>
-        <div class="edit-form-row">
-          <input class="edit-input" id="edit-price-${p.id}" type="number" value="${p.price||''}" placeholder="단가(원)" style="max-width:120px">
-          <button class="edit-submit" onclick="saveEdit(${p.id})">저장</button>
-          <button class="edit-cancel" onclick="cancelEdit()">취소</button>
-        </div>`;
-      itemsEl.appendChild(editForm);
-      if(isEditing) setTimeout(()=>document.getElementById(`edit-name-${p.id}`)?.focus(),50);
-    });
-  });
+function setDbSort(mode){
+  dbSortMode=mode;
+  document.getElementById('sortBtnName').classList.toggle('active',mode==='name');
+  document.getElementById('sortBtnFreq').classList.toggle('active',mode==='freq');
+  renderDB();
 }
 
-function toggleProduct(productId) {
+function renderDB(){
+  const q=document.getElementById('dbSearch').value.trim().toLowerCase();
+  const container=document.getElementById('dbList');
+  container.innerHTML='';
+
+  if(dbSortMode==='freq'){
+    const filtered=products
+      .filter(p=>!q||p.name.includes(q))
+      .sort((a,b)=>(b.usageCount||0)-(a.usageCount||0)||a.name.localeCompare(b.name,'ko'));
+    if(!filtered.length) return;
+    const itemsEl=document.createElement('div');
+    itemsEl.className='db-items';
+    container.appendChild(itemsEl);
+    filtered.forEach(p=>renderDbItem(p,itemsEl));
+  } else {
+    const categories=[...new Set(products.map(p=>p.category))];
+    categories.forEach(cat=>{
+      const filtered=products
+        .filter(p=>p.category===cat&&(!q||p.name.includes(q)))
+        .sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+      if(!filtered.length) return;
+      const div=document.createElement('div');
+      div.className='db-category';
+      div.innerHTML=`<div class="db-category-title">${cat}</div><div class="db-items"></div>`;
+      container.appendChild(div);
+      const itemsEl=div.querySelector('.db-items');
+      filtered.forEach(p=>renderDbItem(p,itemsEl));
+    });
+  }
+}
+
+function renderDbItem(p,itemsEl){
+  const isSelected=orderItems.some(o=>o.productId===p.id);
+  const isEditing=editingProductId===p.id;
+  const priceText=p.price?`${p.price.toLocaleString()}원/${p.unit}`:'단가없음';
+  const cnt=p.usageCount||0;
+  const freqBadge=dbSortMode==='freq'
+    ?`<span class="db-freq-badge${cnt===0?' zero':''}">${cnt}회</span>`:'';
+  const row=document.createElement('div');
+  row.className='db-item-row';
+  row.innerHTML=`
+    <div class="db-item-select" onclick="toggleProduct(${p.id})">
+      <div class="db-check ${isSelected?'selected':''}">${isSelected?'✓':''}</div>
+      <span class="db-item-name">${p.name}</span>
+      <span class="db-item-unit">${p.unit}</span>
+      <span class="db-item-price-tag ${p.price?'':'none'}">${priceText}</span>
+      ${freqBadge}
+    </div>
+    <div class="db-action-btns">
+      <button class="db-edit-btn" onclick="event.stopPropagation();startEdit(${p.id})">수정</button>
+      <button class="db-del-btn" onclick="event.stopPropagation();showDelModal(${p.id})">삭제</button>
+    </div>`;
+  itemsEl.appendChild(row);
+  const editForm=document.createElement('div');
+  editForm.className='db-edit-form'+(isEditing?' visible':'');
+  editForm.innerHTML=`
+    <div class="edit-form-row">
+      <input class="edit-input" id="edit-name-${p.id}" type="text" value="${p.name}" placeholder="품목명">
+      <input class="edit-input" id="edit-unit-${p.id}" type="text" value="${p.unit}" placeholder="단위" style="max-width:70px">
+    </div>
+    <div class="edit-form-row">
+      <input class="edit-input" id="edit-price-${p.id}" type="number" value="${p.price||''}" placeholder="단가(원)" style="max-width:120px">
+      <button class="edit-submit" onclick="saveEdit(${p.id})">저장</button>
+      <button class="edit-cancel" onclick="cancelEdit()">취소</button>
+    </div>`;
+  itemsEl.appendChild(editForm);
+  if(isEditing) setTimeout(()=>document.getElementById(`edit-name-${p.id}`)?.focus(),50);
+}
+
+function toggleProduct(productId){
   const idx=orderItems.findIndex(o=>o.productId===productId);
   if(idx>=0){orderItems.splice(idx,1);showToast('목록에서 제거했어요');}
-  else{orderItems.push({productId,qty:1,done:false});showToast('발주 목록에 추가했어요 ✓');}
+  else{
+    orderItems.push({productId,qty:1,done:false});
+    const p=products.find(x=>x.id===productId);
+    if(p) p.usageCount=(p.usageCount||0)+1;
+    showToast('발주 목록에 추가했어요 ✓');
+  }
   saveData(); renderDB(); renderOrder();
 }
 
