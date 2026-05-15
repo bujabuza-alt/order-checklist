@@ -24,7 +24,7 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 
 /* 탭 */
 .tabs { display: flex; background: #fff; border-bottom: 2px solid #eee; position: sticky; top: 0; z-index: 10; }
-.tab { flex: 1; padding: 13px; text-align: center; font-size: 13px; font-weight: 600; color: #aaa; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+.tab { flex: 1; padding: 13px 4px; text-align: center; font-size: 12px; font-weight: 600; color: #aaa; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
 .tab.active { color: #1a1a1a; border-bottom-color: #c8a96e; }
 
 .save-indicator { font-size: 10px; color: #4caf50; text-align: right; padding: 4px 16px 0; opacity: 0; transition: opacity 0.3s; }
@@ -105,6 +105,14 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .edit-submit { background: #1a1a1a; color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .edit-cancel { background: transparent; color: #aaa; border: 1px solid #ddd; border-radius: 6px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
 
+/* 주기/D-Day 배지 */
+.cycle-badges { display: flex; gap: 4px; flex-shrink: 0; }
+.cycle-badge { font-size: 10px; font-weight: 700; border-radius: 8px; padding: 2px 6px; }
+.cycle-badge.cycle { background: #e8f4fd; color: #1976d2; }
+.cycle-badge.dday-normal { background: #e8f5e9; color: #388e3c; }
+.cycle-badge.dday-soon { background: #fff8e1; color: #f57f17; }
+.cycle-badge.dday-due { background: #fce4ec; color: #c62828; }
+
 .add-product-btn { width: 100%; padding: 14px; border: 1.5px dashed #c8a96e; border-radius: 8px; background: transparent; color: #c8a96e; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px; }
 
 /* 토스트 */
@@ -112,7 +120,7 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* 모달 공통 */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-end; justify-content: center; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: flex-end; justify-content: center; }
 .modal-overlay.show { display: flex; }
 .modal { background: #fff; border-radius: 20px 20px 0 0; padding: 24px 20px 36px; width: 100%; max-width: 600px; }
 .modal-handle { width: 36px; height: 4px; background: #eee; border-radius: 2px; margin: 0 auto 20px; }
@@ -132,20 +140,18 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .form-row2 .form-group { flex: 1; }
 .form-select { width: 100%; border: 1.5px solid #eee; border-radius: 8px; padding: 10px 12px; font-size: 14px; outline: none; background: #fafafa; }
 .form-submit { width: 100%; background: #1a1a1a; color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 4px; }
-/* 새 상품 추가 플로팅 버튼이 항상 위에 오도록 */
-.floating-add-btn,
-.add-product-btn.fixed {
-  position: fixed !important;
-  bottom: 20px;
-  right: 20px;
-  z-index: 9999 !important;     /* 가장 중요한 부분 */
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
 
-/* 모달이나 다른 요소가 버튼을 가리지 않게 */
-.modal-overlay {
-  z-index: 10000 !important;
-}
+/* 발주 내역 */
+.history-empty { text-align: center; padding: 50px 20px; color: #bbb; font-size: 14px; }
+.history-empty span { display: block; font-size: 36px; margin-bottom: 12px; }
+.history-entry { background: #fff; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+.history-entry-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #f5f5f5; }
+.history-date { font-size: 14px; font-weight: 700; color: #1a1a1a; }
+.history-type-badge { font-size: 11px; font-weight: 700; border-radius: 8px; padding: 3px 9px; }
+.history-type-badge.copy { background: #e8f4fd; color: #1565c0; }
+.history-type-badge.clear { background: #fce4ec; color: #b71c1c; }
+.history-items { padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+.history-item-chip { font-size: 12px; background: #f5f5f5; color: #444; border-radius: 8px; padding: 4px 10px; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -161,6 +167,7 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 <div class="tabs">
   <div class="tab active" onclick="switchTab('order')">📋 발주 목록</div>
   <div class="tab" onclick="switchTab('db')">🗂 상품 관리</div>
+  <div class="tab" onclick="switchTab('history')">📅 발주 내역</div>
 </div>
 <div class="save-indicator" id="saveIndicator">✓ 저장됨</div>
 
@@ -187,7 +194,7 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
   </div>
   <div class="btn-row">
     <button class="copy-btn" id="copyBtn" onclick="copyOrder()">📋 발주 내용 복사</button>
-    <button class="clear-btn" onclick="showClearModal()">🗑 전체 초기화</button>
+    <button class="clear-btn" onclick="showClearModal()">🗑 리스트 초기화</button>
   </div>
   <div id="orderList"></div>
 </div>
@@ -203,12 +210,17 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
   <button class="add-product-btn" onclick="openAddModal()">+ 새 품목 등록</button>
 </div>
 
+<!-- 발주 내역 탭 -->
+<div class="section" id="tab-history">
+  <div id="historyList"></div>
+</div>
+
 <!-- 초기화 확인 모달 -->
 <div class="modal-overlay" id="clearModal">
   <div class="modal modal-center">
     <div class="modal-handle"></div>
-    <h3>발주 목록 초기화</h3>
-    <p>선택된 모든 품목과 수량이 제거됩니다.\n계속하시겠어요?</p>
+    <h3>리스트 초기화</h3>
+    <p>선택된 모든 품목과 수량이 제거됩니다.\n발주 내역에 기록된 후 초기화해요.\n계속하시겠어요?</p>
     <div class="modal-btns">
       <button class="modal-cancel" onclick="hideClearModal()">취소</button>
       <button class="modal-confirm-red" onclick="clearAllOrder()">초기화</button>
@@ -298,7 +310,7 @@ function loadData() {
 }
 function saveData() {
   try {
-    localStorage.setItem('orderApp', JSON.stringify({ products, orderItems, nextProductId }));
+    localStorage.setItem('orderApp', JSON.stringify({ products, orderItems, nextProductId, orderHistory }));
     showSaveIndicator();
   } catch(e) {}
 }
@@ -311,19 +323,75 @@ function showSaveIndicator() {
 
 const saved=loadData();
 let products=saved?.products || DEFAULT_PRODUCTS.map(p=>({...p,price:p.price||0}));
-// 기존 데이터에 price / usageCount 필드 없을 경우 보정
-products=products.map(p=>({...p,price:p.price??0,usageCount:p.usageCount??0}));
+products=products.map(p=>({...p,price:p.price??0,usageCount:p.usageCount??0,orderDates:p.orderDates??[]}));
 let orderItems=saved?.orderItems||[];
 let nextProductId=saved?.nextProductId||100;
+let orderHistory=saved?.orderHistory||[];
 let editingProductId=null;
 let deletingProductId=null;
 let dbSortMode='name';
 
+// 오늘 날짜를 'YYYY-MM-DD' 형식으로 반환
+function todayStr() {
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// 날짜를 'MM/DD(요일)' 형식으로 표시
+function formatDate(dateStr) {
+  const days=['일','월','화','수','목','금','토'];
+  const d=new Date(dateStr+'T00:00:00');
+  return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}(${days[d.getDay()]})`;
+}
+
+// 발주 이벤트 기록: type = 'copy' | 'clear'
+function recordOrderEvent(type) {
+  if(!orderItems.length) return;
+  const today=todayStr();
+
+  // 히스토리에 저장
+  const items=orderItems.map(o=>{
+    const p=products.find(x=>x.id===o.productId);
+    return {productId:o.productId, name:p?.name||'?', qty:o.qty, unit:p?.unit||''};
+  });
+  orderHistory.unshift({date:today, type, items});
+
+  // 각 상품의 orderDates에 오늘 날짜 기록 (같은 날짜는 중복 기록 안 함)
+  orderItems.forEach(o=>{
+    const p=products.find(x=>x.id===o.productId);
+    if(p){
+      if(!p.orderDates) p.orderDates=[];
+      if(!p.orderDates.includes(today)) p.orderDates.push(today);
+    }
+  });
+}
+
+// 상품의 평균 발주 주기(일) 및 D-Day 계산
+function getProductCycleInfo(product) {
+  const dates=[...new Set(product.orderDates||[])].sort();
+  if(dates.length<2) return null;
+  const intervals=[];
+  for(let i=1;i<dates.length;i++){
+    const diff=(new Date(dates[i])-new Date(dates[i-1]))/86400000;
+    intervals.push(diff);
+  }
+  const avgCycle=Math.round(intervals.reduce((a,b)=>a+b,0)/intervals.length);
+  const lastDate=new Date(dates[dates.length-1]+'T00:00:00');
+  const nextDate=new Date(lastDate.getTime()+avgCycle*86400000);
+  const today=new Date(); today.setHours(0,0,0,0); nextDate.setHours(0,0,0,0);
+  const dDays=Math.round((nextDate-today)/86400000);
+  return {avgCycle, dDays};
+}
+
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&tab==='order')||(i===1&&tab==='db')));
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    t.classList.toggle('active',(i===0&&tab==='order')||(i===1&&tab==='db')||(i===2&&tab==='history'));
+  });
   document.getElementById('tab-order').classList.toggle('active',tab==='order');
   document.getElementById('tab-db').classList.toggle('active',tab==='db');
+  document.getElementById('tab-history').classList.toggle('active',tab==='history');
   if(tab==='db') renderDB();
+  if(tab==='history') renderHistory();
 }
 
 // ── 상품 DB ──
@@ -372,6 +440,23 @@ function renderDbItem(p,itemsEl){
   const cnt=p.usageCount||0;
   const freqBadge=dbSortMode==='freq'
     ?`<span class="db-freq-badge${cnt===0?' zero':''}">${cnt}회</span>`:'';
+
+  // 주기/D-Day 배지
+  const cycleInfo=getProductCycleInfo(p);
+  let cycleBadgesHtml='';
+  if(cycleInfo){
+    const {avgCycle,dDays}=cycleInfo;
+    const dStr=dDays>0?`D-${dDays}`:dDays===0?'D-Day':`D+${Math.abs(dDays)}`;
+    let dClass='dday-normal';
+    if(dDays<=0) dClass='dday-due';
+    else if(dDays<=2) dClass='dday-soon';
+    cycleBadgesHtml=`
+      <div class="cycle-badges">
+        <span class="cycle-badge cycle">~${avgCycle}d</span>
+        <span class="cycle-badge ${dClass}">${dStr}</span>
+      </div>`;
+  }
+
   const row=document.createElement('div');
   row.className='db-item-row';
   row.innerHTML=`
@@ -382,6 +467,7 @@ function renderDbItem(p,itemsEl){
       <span class="db-item-price-tag ${p.price?'':'none'}">${priceText}</span>
       ${freqBadge}
     </div>
+    ${cycleBadgesHtml}
     <div class="db-action-btns">
       <button class="db-edit-btn" onclick="event.stopPropagation();startEdit(${p.id})">수정</button>
       <button class="db-del-btn" onclick="event.stopPropagation();showDelModal(${p.id})">삭제</button>
@@ -460,7 +546,7 @@ function addProduct(){
   const price=parseInt(document.getElementById('newProductPrice').value)||0;
   const category=document.getElementById('newProductCategory').value;
   if(!name||!unit){showToast('품목명과 단위를 입력해주세요');return;}
-  products.push({id:nextProductId++,name,unit,category,price});
+  products.push({id:nextProductId++,name,unit,category,price,usageCount:0,orderDates:[]});
   closeAddModal();
   showToast(`'${name}' 등록 완료!`);
   saveData(); renderDB();
@@ -509,6 +595,7 @@ function showClearModal(){
 }
 function hideClearModal(){document.getElementById('clearModal').classList.remove('show');}
 function clearAllOrder(){
+  recordOrderEvent('clear');
   orderItems=[];hideClearModal();
   showToast('발주 목록을 초기화했어요');
   saveData(); renderOrder(); renderDB();
@@ -555,6 +642,8 @@ function updatePreview(){
 function copyOrder(){
   const text=document.getElementById('previewText').textContent;
   if(!orderItems.length){showToast('발주 품목이 없어요');return;}
+  recordOrderEvent('copy');
+  saveData();
   const done=()=>{
     const btn=document.getElementById('copyBtn');
     btn.textContent='✓ 복사 완료!';btn.classList.add('copied');
@@ -570,6 +659,30 @@ function fallbackCopy(text,cb){
   document.body.appendChild(ta);ta.focus();ta.select();
   try{document.execCommand('copy');cb();}catch(e){showToast('직접 선택해서 복사해주세요');}
   document.body.removeChild(ta);
+}
+
+// ── 발주 내역 ──
+function renderHistory(){
+  const container=document.getElementById('historyList');
+  container.innerHTML='';
+  if(!orderHistory.length){
+    container.innerHTML=`<div class="history-empty"><span>📭</span>아직 발주 내역이 없어요<br><small style="font-size:12px;color:#ccc">발주 복사 또는 리스트 초기화 시 기록돼요</small></div>`;
+    return;
+  }
+  orderHistory.forEach(entry=>{
+    const typeLabel=entry.type==='copy'?'복사':'초기화';
+    const typeClass=entry.type==='copy'?'copy':'clear';
+    const itemChips=entry.items.map(it=>`<span class="history-item-chip">${it.name} ${it.qty}${it.unit}</span>`).join('');
+    const div=document.createElement('div');
+    div.className='history-entry';
+    div.innerHTML=`
+      <div class="history-entry-header">
+        <span class="history-date">${formatDate(entry.date)}</span>
+        <span class="history-type-badge ${typeClass}">${typeLabel}</span>
+      </div>
+      <div class="history-items">${itemChips}</div>`;
+    container.appendChild(div);
+  });
 }
 
 function showToast(msg){
