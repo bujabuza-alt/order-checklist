@@ -362,6 +362,7 @@ function recordOrderEvent(type) {
     if(p){
       if(!p.orderDates) p.orderDates=[];
       if(!p.orderDates.includes(today)) p.orderDates.push(today);
+      p.usageCount=(p.usageCount||0)+1;
     }
   });
 }
@@ -494,8 +495,6 @@ function toggleProduct(productId){
   if(idx>=0){orderItems.splice(idx,1);showToast('목록에서 제거했어요');}
   else{
     orderItems.push({productId,qty:1,done:false});
-    const p=products.find(x=>x.id===productId);
-    if(p) p.usageCount=(p.usageCount||0)+1;
     showToast('발주 목록에 추가했어요 ✓');
   }
   saveData(); renderDB(); renderOrder();
@@ -595,7 +594,6 @@ function showClearModal(){
 }
 function hideClearModal(){document.getElementById('clearModal').classList.remove('show');}
 function clearAllOrder(){
-  recordOrderEvent('clear');
   orderItems=[];hideClearModal();
   showToast('발주 목록을 초기화했어요');
   saveData(); renderOrder(); renderDB();
