@@ -85,7 +85,10 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .db-freq-badge { font-size: 10px; color: #c8a96e; background: #fff8ed; border-radius: 10px; padding: 1px 7px; flex-shrink: 0; font-weight: 600; }
 .db-freq-badge.zero { color: #ccc; background: #f5f5f5; }
 .db-category { margin-bottom: 16px; }
-.db-category-title { font-size: 11px; color: #888; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 8px; padding-left: 2px; }
+.db-category-title { font-size: 11px; color: #888; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 8px; padding: 4px 2px; cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none; }
+.db-cat-count { font-size: 10px; color: #bbb; background: #f0f0f0; border-radius: 8px; padding: 1px 6px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.db-cat-chevron { margin-left: auto; color: #aaa; font-size: 11px; }
+.db-items.hidden { display: none; }
 .db-items { display: flex; flex-direction: column; gap: 6px; }
 .db-item-row { background: #fff; border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .db-item-select { flex: 1; display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
@@ -113,7 +116,8 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .cycle-badge.dday-soon { background: #fff8e1; color: #f57f17; }
 .cycle-badge.dday-due { background: #fce4ec; color: #c62828; }
 
-.add-product-btn { width: 100%; padding: 14px; border: 1.5px dashed #c8a96e; border-radius: 8px; background: transparent; color: #c8a96e; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px; }
+.add-product-fab { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 568px; padding: 14px; background: #1a1a1a; color: #c8a96e; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 50; letter-spacing: 0.05em; }
+#tab-db { padding-bottom: 80px; }
 
 /* 토스트 */
 .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 100; white-space: nowrap; }
@@ -207,7 +211,7 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
     <button class="db-sort-btn" id="sortBtnFreq" onclick="setDbSort('freq')">사용빈도순</button>
   </div>
   <div id="dbList"></div>
-  <button class="add-product-btn" onclick="openAddModal()">+ 새 품목 등록</button>
+  <button class="add-product-fab" onclick="openAddModal()">+ 새 품목 등록</button>
 </div>
 
 <!-- 발주 내역 탭 -->
@@ -330,6 +334,7 @@ let orderHistory=saved?.orderHistory||[];
 let editingProductId=null;
 let deletingProductId=null;
 let dbSortMode='name';
+let collapsedCategories=new Set();
 
 // 오늘 날짜를 'YYYY-MM-DD' 형식으로 반환
 function todayStr() {
@@ -424,12 +429,15 @@ function renderDB(){
         .filter(p=>p.category===cat&&(!q||p.name.includes(q)))
         .sort((a,b)=>a.name.localeCompare(b.name,'ko'));
       if(!filtered.length) return;
+      const isCollapsed=q?false:collapsedCategories.has(cat);
       const div=document.createElement('div');
       div.className='db-category';
-      div.innerHTML=`<div class="db-category-title">${cat}</div><div class="db-items"></div>`;
+      div.innerHTML=`<div class="db-category-title" onclick="toggleCategory('${cat}')"><span>${cat}</span><span class="db-cat-count">${filtered.length}개</span><span class="db-cat-chevron">${isCollapsed?'▶':'▼'}</span></div><div class="db-items${isCollapsed?' hidden':''}"></div>`;
       container.appendChild(div);
-      const itemsEl=div.querySelector('.db-items');
-      filtered.forEach(p=>renderDbItem(p,itemsEl));
+      if(!isCollapsed){
+        const itemsEl=div.querySelector('.db-items');
+        filtered.forEach(p=>renderDbItem(p,itemsEl));
+      }
     });
   }
 }
@@ -502,6 +510,7 @@ function toggleProduct(productId){
 
 function startEdit(id){editingProductId=editingProductId===id?null:id;renderDB();}
 function cancelEdit(){editingProductId=null;renderDB();}
+function toggleCategory(cat){if(collapsedCategories.has(cat))collapsedCategories.delete(cat);else collapsedCategories.add(cat);renderDB();}
 function saveEdit(id){
   const name=document.getElementById(`edit-name-${id}`).value.trim();
   const unit=document.getElementById(`edit-unit-${id}`).value.trim();
