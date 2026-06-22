@@ -91,10 +91,12 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .db-items.hidden { display: none; }
 .db-items { display: flex; flex-direction: column; gap: 6px; }
 .db-item-row { background: #fff; border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-.db-item-select { flex: 1; display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
-.db-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent; transition: all 0.2s; flex-shrink: 0; }
+.db-item-select { flex: 1; display: flex; align-items: flex-start; gap: 8px; cursor: pointer; min-width: 0; }
+.db-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent; transition: all 0.2s; flex-shrink: 0; margin-top: 1px; }
 .db-check.selected { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
-.db-item-name { font-size: 14px; font-weight: 600; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.db-item-name { font-size: 14px; font-weight: 600; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
+.db-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .db-item-unit { font-size: 11px; color: #aaa; background: #f5f5f5; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
 .db-item-price-tag { font-size: 11px; color: #c8a96e; font-weight: 600; flex-shrink: 0; }
 .db-item-price-tag.none { color: #ddd; }
@@ -471,12 +473,16 @@ function renderDbItem(p,itemsEl){
   row.innerHTML=`
     <div class="db-item-select" onclick="toggleProduct(${p.id})">
       <div class="db-check ${isSelected?'selected':''}">${isSelected?'✓':''}</div>
-      <span class="db-item-name">${p.name}</span>
-      <span class="db-item-unit">${p.unit}</span>
-      <span class="db-item-price-tag ${p.price?'':'none'}">${priceText}</span>
-      ${freqBadge}
+      <div class="db-item-info">
+        <div class="db-item-name">${p.name}</div>
+        <div class="db-item-meta">
+          <span class="db-item-unit">${p.unit}</span>
+          <span class="db-item-price-tag ${p.price?'':'none'}">${priceText}</span>
+          ${freqBadge}
+          ${cycleBadgesHtml}
+        </div>
+      </div>
     </div>
-    ${cycleBadgesHtml}
     <div class="db-action-btns">
       <button class="db-edit-btn" onclick="event.stopPropagation();startEdit(${p.id})">수정</button>
       <button class="db-del-btn" onclick="event.stopPropagation();showDelModal(${p.id})">삭제</button>
