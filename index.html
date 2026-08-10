@@ -264,17 +264,21 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
     </div>
     <div class="form-row2">
       <div class="form-group">
-        <label class="form-label">단가 (원, 선택)</label>
-        <input type="number" class="form-input" id="newProductPrice" placeholder="예: 3000">
+        <label class="form-label">최소가격 (원, 선택)</label>
+        <input type="number" class="form-input" id="newProductPriceMin" placeholder="예: 2500">
       </div>
       <div class="form-group">
-        <label class="form-label">카테고리</label>
-        <select class="form-select" id="newProductCategory">
-          <option>채소</option><option>과일</option><option>육류</option>
-          <option>수산물</option><option>유제품</option><option>양념/소스</option>
-          <option>곡류</option><option>기타</option>
-        </select>
+        <label class="form-label">최대가격 (원, 선택)</label>
+        <input type="number" class="form-input" id="newProductPriceMax" placeholder="예: 3500">
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">카테고리</label>
+      <select class="form-select" id="newProductCategory">
+        <option>채소</option><option>과일</option><option>육류</option>
+        <option>수산물</option><option>유제품</option><option>양념/소스</option>
+        <option>곡류</option><option>기타</option>
+      </select>
     </div>
     <div class="modal-btns" style="margin-bottom:10px">
       <button class="modal-cancel" onclick="closeAddModal()">취소</button>
@@ -328,8 +332,17 @@ function showSaveIndicator() {
 }
 
 const saved=loadData();
-let products=saved?.products || DEFAULT_PRODUCTS.map(p=>({...p,price:p.price||0}));
-products=products.map(p=>({...p,price:p.price??0,usageCount:p.usageCount??0,orderDates:p.orderDates??[]}));
+let products=saved?.products || DEFAULT_PRODUCTS;
+products=products.map(p=>{
+  const {price,priceMin,priceMax,...rest}=p;
+  const min=priceMin??price??0;
+  const max=priceMax??price??0;
+  return {...rest,priceMin:min,priceMax:max,usageCount:p.usageCount??0,orderDates:p.orderDates??[]};
+});
+function priceMinOf(p){return p.priceMin||0;}
+function priceMaxOf(p){return p.priceMax||0;}
+function priceAvg(p){return Math.round((priceMinOf(p)+priceMaxOf(p))/2);}
+function hasPrice(p){return priceMinOf(p)>0||priceMaxOf(p)>0;}
 let orderItems=saved?.orderItems||[];
 let nextProductId=saved?.nextProductId||100;
 let orderHistory=saved?.orderHistory||[];
@@ -447,7 +460,8 @@ function renderDB(){
 function renderDbItem(p,itemsEl){
   const isSelected=orderItems.some(o=>o.productId===p.id);
   const isEditing=editingProductId===p.id;
-  const priceText=p.price?`${p.price.toLocaleString()}원/${p.unit}`:'단가없음';
+  const avg=priceAvg(p);
+  const priceText=hasPrice(p)?(p.priceMin===p.priceMax?`${avg.toLocaleString()}원/${p.unit}`:`${avg.toLocaleString()}원/${p.unit} (${priceMinOf(p).toLocaleString()}~${priceMaxOf(p).toLocaleString()})`):'단가없음';
   const cnt=p.usageCount||0;
   const freqBadge=dbSortMode==='freq'
     ?`<span class="db-freq-badge${cnt===0?' zero':''}">${cnt}회</span>`:'';
@@ -477,7 +491,7 @@ function renderDbItem(p,itemsEl){
         <div class="db-item-name">${p.name}</div>
         <div class="db-item-meta">
           <span class="db-item-unit">${p.unit}</span>
-          <span class="db-item-price-tag ${p.price?'':'none'}">${priceText}</span>
+          <span class="db-item-price-tag ${hasPrice(p)?'':'none'}">${priceText}</span>
           ${freqBadge}
           ${cycleBadgesHtml}
         </div>
@@ -496,7 +510,10 @@ function renderDbItem(p,itemsEl){
       <input class="edit-input" id="edit-unit-${p.id}" type="text" value="${p.unit}" placeholder="단위" style="max-width:70px">
     </div>
     <div class="edit-form-row">
-      <input class="edit-input" id="edit-price-${p.id}" type="number" value="${p.price||''}" placeholder="단가(원)" style="max-width:120px">
+      <input class="edit-input" id="edit-price-min-${p.id}" type="number" value="${p.priceMin||''}" placeholder="최소가격" style="max-width:100px">
+      <input class="edit-input" id="edit-price-max-${p.id}" type="number" value="${p.priceMax||''}" placeholder="최대가격" style="max-width:100px">
+    </div>
+    <div class="edit-form-row">
       <button class="edit-submit" onclick="saveEdit(${p.id})">저장</button>
       <button class="edit-cancel" onclick="cancelEdit()">취소</button>
     </div>`;
@@ -520,10 +537,12 @@ function toggleCategory(cat){if(collapsedCategories.has(cat))collapsedCategories
 function saveEdit(id){
   const name=document.getElementById(`edit-name-${id}`).value.trim();
   const unit=document.getElementById(`edit-unit-${id}`).value.trim();
-  const price=parseInt(document.getElementById(`edit-price-${id}`).value)||0;
+  let priceMin=parseInt(document.getElementById(`edit-price-min-${id}`).value)||0;
+  let priceMax=parseInt(document.getElementById(`edit-price-max-${id}`).value)||0;
   if(!name||!unit){showToast('이름과 단위를 입력해주세요');return;}
+  if(priceMin&&priceMax&&priceMin>priceMax)[priceMin,priceMax]=[priceMax,priceMin];
   const p=products.find(x=>x.id===id);
-  if(p){p.name=name;p.unit=unit;p.price=price;}
+  if(p){p.name=name;p.unit=unit;p.priceMin=priceMin;p.priceMax=priceMax;}
   editingProductId=null;
   showToast('수정 완료!');
   saveData(); renderDB(); renderOrder();
@@ -549,7 +568,8 @@ function confirmDeleteProduct(){
 function openAddModal(){
   document.getElementById('newProductName').value='';
   document.getElementById('newProductUnit').value='';
-  document.getElementById('newProductPrice').value='';
+  document.getElementById('newProductPriceMin').value='';
+  document.getElementById('newProductPriceMax').value='';
   document.getElementById('addModal').classList.add('show');
   setTimeout(()=>document.getElementById('newProductName').focus(),100);
 }
@@ -557,10 +577,12 @@ function closeAddModal(){document.getElementById('addModal').classList.remove('s
 function addProduct(){
   const name=document.getElementById('newProductName').value.trim();
   const unit=document.getElementById('newProductUnit').value.trim();
-  const price=parseInt(document.getElementById('newProductPrice').value)||0;
+  let priceMin=parseInt(document.getElementById('newProductPriceMin').value)||0;
+  let priceMax=parseInt(document.getElementById('newProductPriceMax').value)||0;
   const category=document.getElementById('newProductCategory').value;
   if(!name||!unit){showToast('품목명과 단위를 입력해주세요');return;}
-  products.push({id:nextProductId++,name,unit,category,price,usageCount:0,orderDates:[]});
+  if(priceMin&&priceMax&&priceMin>priceMax)[priceMin,priceMax]=[priceMax,priceMin];
+  products.push({id:nextProductId++,name,unit,category,priceMin,priceMax,usageCount:0,orderDates:[]});
   closeAddModal();
   showToast(`'${name}' 등록 완료!`);
   saveData(); renderDB();
@@ -577,7 +599,8 @@ function renderOrder(){
   orderItems.forEach(o=>{
     const p=products.find(x=>x.id===o.productId);
     if(!p)return;
-    const itemTotal=p.price?(p.price*o.qty).toLocaleString()+'원':null;
+    const avg=priceAvg(p);
+    const itemTotal=hasPrice(p)?(avg*o.qty).toLocaleString()+'원':null;
     const div=document.createElement('div');
     div.className='order-item'+(o.done?' done':'');
     div.innerHTML=`
@@ -592,7 +615,7 @@ function renderOrder(){
         <div class="unit-label">${p.unit}</div>
         <button class="del-order-btn" onclick="removeOrder(${o.productId})">×</button>
       </div>
-      <div class="order-item-price ${itemTotal?'':'no-price'}">${itemTotal?`${o.qty}${p.unit} × ${p.price.toLocaleString()}원 = ${itemTotal}`:'단가 미입력'}</div>`;
+      <div class="order-item-price ${itemTotal?'':'no-price'}">${itemTotal?`${o.qty}${p.unit} × ${avg.toLocaleString()}원 = ${itemTotal}`:'단가 미입력'}</div>`;
     list.appendChild(div);
   });
   updateSummary(); updatePreview();
@@ -621,17 +644,20 @@ function updateSummary(){
   document.getElementById('s-done').textContent=done;
   document.getElementById('s-remain').textContent=total-done;
 
-  let totalPrice=0, priceCount=0;
+  let totalPrice=0, priceCount=0, lowTotal=0, highTotal=0;
   orderItems.forEach(o=>{
     const p=products.find(x=>x.id===o.productId);
-    if(p&&p.price){totalPrice+=p.price*o.qty;priceCount++;}
+    if(p&&hasPrice(p)){
+      totalPrice+=priceAvg(p)*o.qty;
+      lowTotal+=priceMinOf(p)*o.qty;
+      highTotal+=priceMaxOf(p)*o.qty;
+      priceCount++;
+    }
   });
   document.getElementById('totalPrice').textContent='₩'+totalPrice.toLocaleString();
   const rangeEl=document.getElementById('priceRange');
-  if(totalPrice>0){
-    const low=Math.round(totalPrice*0.9);
-    const high=Math.round(totalPrice*1.1);
-    rangeEl.textContent=`₩${low.toLocaleString()} ~ ₩${high.toLocaleString()}`;
+  if(totalPrice>0&&lowTotal!==highTotal){
+    rangeEl.textContent=`₩${lowTotal.toLocaleString()} ~ ₩${highTotal.toLocaleString()}`;
   } else {
     rangeEl.textContent='';
   }
