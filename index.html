@@ -158,6 +158,12 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 .history-type-badge.clear { background: #fce4ec; color: #b71c1c; }
 .history-items { padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 6px; }
 .history-item-chip { font-size: 12px; background: #f5f5f5; color: #444; border-radius: 8px; padding: 4px 10px; font-weight: 600; }
+
+/* 류마 앱으로 내보내기 */
+.export-btn { width: 100%; background: #1a1a1a; color: #c8a96e; border: none; border-radius: 10px; padding: 14px; font-size: 14px; font-weight: 700; cursor: pointer; margin-bottom: 6px; }
+.export-hint { font-size: 11px; color: #999; text-align: center; margin-bottom: 14px; line-height: 1.5; }
+.export-text { width: 100%; height: 160px; border: 1.5px solid #eee; border-radius: 8px; padding: 10px; font-size: 11px; font-family: monospace; background: #fafafa; margin-bottom: 12px; resize: none; }
+.export-summary { font-size: 13px; color: #555; margin-bottom: 10px; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -218,6 +224,8 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
 
 <!-- 발주 내역 탭 -->
 <div class="section" id="tab-history">
+  <button class="export-btn" onclick="exportForRyuma()">📤 류마 앱으로 데이터 내보내기</button>
+  <div class="export-hint">상품·단가·사용빈도·발주 내역 전체를 복사합니다.<br>류마 앱 → 🛒 발주 → 상품 관리 → 📥 가져오기에 붙여넣으세요.</div>
   <div id="historyList"></div>
 </div>
 
@@ -283,6 +291,20 @@ body { min-height: 100vh; background: #f0ede8; font-family: 'Apple SD Gothic Neo
     <div class="modal-btns" style="margin-bottom:10px">
       <button class="modal-cancel" onclick="closeAddModal()">취소</button>
       <button class="form-submit" style="flex:2;margin-top:0" onclick="addProduct()">등록하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 내보내기 모달 -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>류마 앱으로 내보내기</h3>
+    <div class="export-summary" id="exportSummary"></div>
+    <textarea class="export-text" id="exportText" readonly></textarea>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="document.getElementById('exportModal').classList.remove('show')">닫기</button>
+      <button class="form-submit" style="flex:2;margin-top:0" id="exportCopyBtn" onclick="copyExportText()">📋 다시 복사</button>
     </div>
   </div>
 </div>
@@ -700,6 +722,28 @@ function fallbackCopy(text,cb){
   document.body.removeChild(ta);
 }
 
+// ── 류마 앱으로 내보내기 ──
+function buildExportText(){
+  return JSON.stringify({
+    _type:'ryuma-order-export', _version:1, _exportedAt:new Date().toISOString(),
+    products, orderItems, orderHistory, nextProductId
+  });
+}
+function copyExportText(){
+  const text=document.getElementById('exportText').value;
+  const done=()=>showToast('복사됐어요! 류마 앱에 붙여넣으세요');
+  if(navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
+  else fallbackCopy(text,done);
+}
+function exportForRyuma(){
+  const text=buildExportText();
+  document.getElementById('exportText').value=text;
+  document.getElementById('exportSummary').textContent=
+    `상품 ${products.length}개 · 발주 내역 ${orderHistory.length}건 · 현재 발주 목록 ${orderItems.length}개`;
+  document.getElementById('exportModal').classList.add('show');
+  copyExportText();
+}
+
 // ── 발주 내역 ──
 function renderHistory(){
   const container=document.getElementById('historyList');
@@ -731,7 +775,7 @@ function showToast(msg){
 }
 
 // 모달 바깥 클릭 닫기
-['clearModal','delModal','addModal'].forEach(id=>{
+['clearModal','delModal','addModal','exportModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){
     if(e.target===this) this.classList.remove('show');
   });
